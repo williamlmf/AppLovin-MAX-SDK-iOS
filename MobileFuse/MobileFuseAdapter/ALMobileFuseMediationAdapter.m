@@ -16,7 +16,7 @@
 #import <MobileFuseSDK/MFRewardedAd.h>
 #import <MobileFuseSDK/MFNativeAd.h>
 
-#define ADAPTER_VERSION @"1.5.2.0"
+#define ADAPTER_VERSION @"1.6.0.0"
 
 /**
  * Enum representing the list of MobileFuse SDK error codes in https://docs.mobilefuse.com/docs/error-codes.
@@ -113,6 +113,7 @@ typedef NS_ENUM(NSInteger, MFAdErrorCode)
 
 - (void)initializeWithParameters:(id<MAAdapterInitializationParameters>)parameters completionHandler:(void (^)(MAAdapterInitializationStatus, NSString *_Nullable))completionHandler
 {
+    [MobileFuse initWithDelegate:nil];
     [MobileFuseSettings setTestMode: [parameters isTesting]];
     completionHandler(MAAdapterInitializationStatusInitializedUnknown, nil);
 }
@@ -159,8 +160,9 @@ typedef NS_ENUM(NSInteger, MFAdErrorCode)
     MFBiddingTokenRequest *request = [[MFBiddingTokenRequest alloc] init];
     request.isTestMode = [parameters isTesting];
     
-    NSString *token = [MFBiddingTokenProvider getTokenWithRequest: request];
-    [delegate didCollectSignal: token];
+    [MFBiddingTokenProvider getTokenWithRequest:request withCallback:^(NSString * _Nonnull token) {
+        [delegate didCollectSignal:token];
+    }];
 }
 
 #pragma mark - MAInterstitialAdapter Methods
