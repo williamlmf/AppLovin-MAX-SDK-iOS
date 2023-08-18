@@ -44,6 +44,12 @@ typedef NS_ENUM(NSInteger, MFAdErrorCode)
     MFAdErrorCodeAdLoadError = 5
 };
 
+@interface ALMobileFuseMediationAdapterInitializationDelegate : NSObject <IMFInitializationCallbackReceiver>
+@property (nonatomic, weak) ALMobileFuseMediationAdapter *parentAdapter;
+@property (nonatomic, copy, nullable) void(^completionBlock)(MAAdapterInitializationStatus, NSString *_Nullable);
+- (instancetype)initWithParentAdapter:(ALMobileFuseMediationAdapter *)parentAdapter completionHandler:(void (^)(MAAdapterInitializationStatus, NSString *_Nullable))completionHandler;
+@end
+
 @interface ALMobileFuseInterstitialDelegate : NSObject <IMFAdCallbackReceiver>
 @property (nonatomic,   weak) ALMobileFuseMediationAdapter *parentAdapter;
 @property (nonatomic, strong) id<MAInterstitialAdapterDelegate> delegate;
@@ -113,9 +119,9 @@ typedef NS_ENUM(NSInteger, MFAdErrorCode)
 
 - (void)initializeWithParameters:(id<MAAdapterInitializationParameters>)parameters completionHandler:(void (^)(MAAdapterInitializationStatus, NSString *_Nullable))completionHandler
 {
-    [MobileFuse initWithDelegate:nil];
     [MobileFuseSettings setTestMode: [parameters isTesting]];
-    completionHandler(MAAdapterInitializationStatusInitializedUnknown, nil);
+    ALMobileFuseMediationAdapterInitializationDelegate *initializationDelegate = [[ALMobileFuseMediationAdapterInitializationDelegate alloc] initWithParentAdapter:self completionHandler:completionHandler];
+    [MobileFuse initWithDelegate:initializationDelegate];
 }
 
 - (NSString *)SDKVersion
@@ -740,6 +746,35 @@ typedef NS_ENUM(NSInteger, MFAdErrorCode)
     {
         [self.parentAdapter log: @"Native %@ ad failed to display with error: %@", self.adFormat.label, adapterError];
         [self.delegate didFailToDisplayAdViewAdWithError: adapterError];
+    }
+}
+
+@end
+
+@implementation ALMobileFuseMediationAdapterInitializationDelegate
+
+#pragma mark - Initialization Delegate Methods
+
+- (instancetype)initWithParentAdapter:(ALMobileFuseMediationAdapter *)parentAdapter completionHandler:(void (^)(MAAdapterInitializationStatus, NSString *_Nullable))completionHandler {
+    self = [super init];
+    if (self) {
+        _parentAdapter = parentAdapter;
+        _completionBlock = [completionHandler copy];
+    }
+    return self;
+}
+
+- (void)onInitSuccess:(NSString *)appId withPublisherId:(NSString *)publisherId {
+    [_parentAdapter log: @"Initialization succeeded"];
+    if (_completionBlock) {
+        _completionBlock(MAAdapterInitializationStatusInitializedSuccess, nil);
+    }
+}
+
+- (void)onInitError:(NSString *)appId withPublisherId:(NSString *)publisherId withError:(MFAdError *)error {
+    [_parentAdapter log: @"Error during initialization with message: %@", error.message];
+    if (_completionBlock) {
+        _completionBlock(MAAdapterInitializationStatusInitializedFailure, nil);
     }
 }
 
